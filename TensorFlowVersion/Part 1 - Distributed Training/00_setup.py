@@ -15,3 +15,7 @@ print(f'database_name: {database_name}')
 # In order for us to track from our worker nodes with Horovod to the MLflow Tracking server we need to supply a databricks host and token
 DATABRICKS_HOST = 'https://' + dbutils.notebook.entry_point.getDbutils().notebook().getContext().tags().get('browserHostName').get()
 DATABRICKS_TOKEN = dbutils.notebook.entry_point.getDbutils().notebook().getContext().apiToken().get()
+
+# COMMAND ----------
+
+

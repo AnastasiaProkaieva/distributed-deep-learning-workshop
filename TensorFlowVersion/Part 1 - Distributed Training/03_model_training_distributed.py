@@ -197,6 +197,8 @@ def preprocess(content: str, label_idx: int):
 # MAGIC We will first do single node training where we will use Petastorm to feed the data from Delta to the training process. We need to use Petastorm's <a href="https://petastorm.readthedocs.io/en/latest/api.html#petastorm.spark.spark_dataset_converter.SparkDatasetConverter.make_tf_dataset" target="_blank">make_tf_dataset</a> to read batches of data.<br><br>
 # MAGIC 
 # MAGIC * Note that we use **`num_epochs=None`** to generate infinite batches of data to avoid handling the last incomplete batch. This is particularly useful in the distributed training scenario, where we need to guarantee that the numbers of data records seen on all workers are identical. Given that the length of each data shard may not be identical, setting **`num_epochs`** to any specific number would fail to meet the guarantee.
+# MAGIC <br>?? But we can repartition per X amount no ? ??
+# MAGIC 
 # MAGIC * The **`workers_count`** param specifies the number of threads or processes to be spawned in the reader pool, and it is not a Spark worker. 
 
 # COMMAND ----------
@@ -346,7 +348,8 @@ def train_and_evaluate_hvd():
         val_ds = (val_ds
                   .map(lambda content, label_idx: preprocess(content, label_idx))
                   .batch(BATCH_SIZE))
-
+        
+        # ?? Why we re doing this ??
         steps_per_epoch = train_size // (BATCH_SIZE * hvd.size())
         validation_steps = max(1, val_size // (BATCH_SIZE * hvd.size()))
 
@@ -358,8 +361,12 @@ def train_and_evaluate_hvd():
                          validation_steps = validation_steps)
         
         # MLflow Tracking (Log only from Worker 0)
+        # ?? How to log for all workers?  ?? 
+        # ?? How to log only each epochs ?(is this even possible to log this as a child Run ? ) ?? 
+        # ??Will be the final model send to a driver or ? ??
         if hvd.rank() == 0:
             # Log events to MLflow
+            # ?? Is this ok that we have a global variable then inside ?? 
             with mlflow.start_run(run_id = active_run_uuid):
                 # Log MLflow Parameters
                 mlflow.log_param('epochs', EPOCHS)
@@ -371,7 +378,7 @@ def train_and_evaluate_hvd():
 
                 # Log Model
                 mlflow.keras.log_model(model, 'model')
-
+    
     return hist.history['val_loss'][-1], hist.history['val_accuracy'][-1]
 
 # COMMAND ----------
@@ -391,7 +398,7 @@ def train_and_evaluate_hvd():
 with mlflow.start_run(run_name='horovod_driver') as run:
     
     active_run_uuid = mlflow.active_run().info.run_uuid
-    hr = HorovodRunner(np=-1, driver_log_verbosity="all")
+    hr = HorovodRunner(np=1, driver_log_verbosity="all")
     hr.run(train_and_evaluate_hvd)
     
 mlflow.end_run()
@@ -437,3 +444,7 @@ val_petastorm_converter.delete()
 
 trained_model = mlflow.keras.load_model(f'runs:/{run.info.run_id}/model')
 trained_model.summary()
+
+# COMMAND ----------
+
+

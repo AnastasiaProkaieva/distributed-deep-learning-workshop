@@ -165,6 +165,10 @@ def build_model(img_height: int,
                                                    input_shape=(img_height, img_width, img_channels))
 
     # Freeze base model layers
+    """
+    Freezing a layer prevents its weights from being modified. 
+    This technique is often used in transfer learning, where the base model(trained on some other dataset)is frozen
+    """
     for layer in base_model.layers:
         layer.trainable = False
 

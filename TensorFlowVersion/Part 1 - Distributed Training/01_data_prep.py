@@ -78,6 +78,10 @@ bronze_df.count()
 
 # COMMAND ----------
 
+print(database_name)
+
+# COMMAND ----------
+
 bronze_tbl_name = 'bronze'
 
 # Delete the old database and tables if needed (for demo purposes)
